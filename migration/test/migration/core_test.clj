@@ -1,22 +1,21 @@
 (ns migration.core-test
   (:use clojure.test
-        midje.sweet       ;; <<<<  
+        midje.sweet
         migration.core))
 
 (deftest migration
-  (testing "migration produces two maps with keys (and values) from one moved to the other"
-    (is (= [{} {:a 1}]
+  (testing "Migration produces a new left and right map"
+    (is (= {:new-left {} :clashes #{} :new-right {:a 1}}
            (migrate {:a 1} :a {}))))
-  (testing "duplicates are not migrated"
-    (is (= [{:a "not moved"} {:a "retained"}]
-           (migrate {:a "not moved"} :a {:a "retained"}))))
-  (testing "multiple keys are allowed"
-    (is (= [{:b 2} {:a 1, :b 3}]
-           (migrate {:a 1, :b 2} :a :b {:b 3}))))
-  (testing "keys missing from the source are ignored"
-    (is (= [{:a "kept"} {:b "moved"}]
-           (migrate {:a "kept", :b "moved"} :b :c {}))))
-
-  (testing "a rather silly test"
-    (is (even? (count (migrate {:a 1} :b {}))))))
-
+  (testing "multiple keys can be moved at once"
+    (is (= {:new-left {} :clashes #{} :new-right {:a 1 :b 2}}
+           (migrate {:a 1, :b 2} :a :b {}))))
+  (testing "Duplicates are not migrated. They are retained in the :clashes set."
+    (is (= {:new-left {:clash "not moved"} :clashes #{:clash} :new-right {:clash "retained"}}
+           (migrate {:clash "not moved"} :clash {:clash "retained"}))))
+  (testing "it is not an error if a key to be moved isn't on the left"
+    (is (= {:new-left {}, :clashes #{}, :new-right {:b 2}}
+           (migrate {:b 2} :a :b {}))))
+  (testing "even if there's no key on the left, a clash is still noted"
+    (is (= {:new-left {}, :clashes #{:a}, :new-right {:a 2}}
+           (migrate {} :a {:a 2})))))
